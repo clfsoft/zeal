@@ -20,15 +20,14 @@
 **
 ****************************************************************************/
 
-#ifndef APPLICATION_H
-#define APPLICATION_H
+#ifndef ZEAL_CORE_APPLICATION_H
+#define ZEAL_CORE_APPLICATION_H
 
 #include <QObject>
 
 class QNetworkAccessManager;
 class QNetworkReply;
 class QThread;
-
 
 namespace Zeal {
 
@@ -44,6 +43,7 @@ class MainWindow;
 namespace Core {
 
 class Extractor;
+class FileManager;
 class Settings;
 
 class Application : public QObject
@@ -59,6 +59,7 @@ public:
     Settings *settings() const;
 
     Registry::DocsetRegistry *docsetRegistry();
+    FileManager *fileManager() const;
 
 public slots:
     void executeQuery(const Registry::SearchQuery &query, bool preventActivation);
@@ -86,6 +87,8 @@ private:
 
     QNetworkAccessManager *m_networkManager = nullptr;
 
+    FileManager *m_fileManager = nullptr;
+
     QThread *m_extractorThread = nullptr;
     Extractor *m_extractor = nullptr;
 
@@ -97,4 +100,4 @@ private:
 } // namespace Core
 } // namespace Zeal
 
-#endif // APPLICATION_H
+#endif // ZEAL_CORE_APPLICATION_H

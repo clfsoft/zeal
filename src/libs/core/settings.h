@@ -20,8 +20,8 @@
 **
 ****************************************************************************/
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef ZEAL_CORE_SETTINGS_H
+#define ZEAL_CORE_SETTINGS_H
 
 #include <QObject>
 #include <QKeySequence>
@@ -64,6 +64,7 @@ public:
     bool darkModeEnabled;
     bool highlightOnNavigateEnabled;
     QString customCssFile;
+    bool isAdDisabled;
 
     // TODO: bool askOnExternalLink;
     // TODO: QString customCss;
@@ -117,4 +118,4 @@ private:
 } // namespace Core
 } // namespace Zeal
 
-#endif // SETTINGS_H
+#endif // ZEAL_CORE_SETTINGS_H

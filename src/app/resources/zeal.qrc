@@ -1,14 +1,13 @@
 <RCC>
     <qresource prefix="/">
         <file>zeal.ico</file>
-        <file>browser/darkmode.css</file>
-        <file>browser/highlight.css</file>
-        <file>browser/main.css</file>
-        <file>browser/start.html</file>
-        <file>icons/type/_DashAnnotations.png</file>
-        <file>icons/type/_DashAnnotations@2x.png</file>
-        <file>icons/type/_Struct.png</file>
-        <file>icons/type/_Struct@2x.png</file>
+        <file>browser/assets/css/darkmode.css</file>
+        <file>browser/assets/css/font-awesome.min.css</file>
+        <file>browser/assets/css/highlight.css</file>
+        <file>browser/assets/css/welcome.min.css</file>
+        <file>browser/assets/fonts/fontawesome-webfont.woff</file>
+        <file>browser/welcome.html</file>
+        <file>browser/welcome-noad.html</file>
         <file>icons/type/Abbreviation.png</file>
         <file>icons/type/Abbreviation@2x.png</file>
         <file>icons/type/Alias.png</file>
@@ -45,6 +44,8 @@
         <file>icons/type/Constructor@2x.png</file>
         <file>icons/type/Conversion.png</file>
         <file>icons/type/Conversion@2x.png</file>
+        <file>icons/type/Data Source.png</file>
+        <file>icons/type/Data Source@2x.png</file>
         <file>icons/type/Database.png</file>
         <file>icons/type/Database@2x.png</file>
         <file>icons/type/Decorator.png</file>
@@ -53,8 +54,6 @@
         <file>icons/type/Define@2x.png</file>
         <file>icons/type/Delegate.png</file>
         <file>icons/type/Delegate@2x.png</file>
-        <file>icons/type/DeletedSnippet.png</file>
-        <file>icons/type/DeletedSnippet@2x.png</file>
         <file>icons/type/Diagram.png</file>
         <file>icons/type/Diagram@2x.png</file>
         <file>icons/type/Directive.png</file>
@@ -81,6 +80,8 @@
         <file>icons/type/File@2x.png</file>
         <file>icons/type/Filter.png</file>
         <file>icons/type/Filter@2x.png</file>
+        <file>icons/type/Flag.png</file>
+        <file>icons/type/Flag@2x.png</file>
         <file>icons/type/Foreign Key.png</file>
         <file>icons/type/Foreign Key@2x.png</file>
         <file>icons/type/Framework.png</file>
@@ -117,6 +118,10 @@
         <file>icons/type/Literal@2x.png</file>
         <file>icons/type/Macro.png</file>
         <file>icons/type/Macro@2x.png</file>
+        <file>icons/type/Member.png</file>
+        <file>icons/type/Member@2x.png</file>
+        <file>icons/type/Message.png</file>
+        <file>icons/type/Message@2x.png</file>
         <file>icons/type/Method.png</file>
         <file>icons/type/Method@2x.png</file>
         <file>icons/type/Mixin.png</file>
@@ -129,6 +134,8 @@
         <file>icons/type/Namespace@2x.png</file>
         <file>icons/type/NewSnippet.png</file>
         <file>icons/type/NewSnippet@2x.png</file>
+        <file>icons/type/Node.png</file>
+        <file>icons/type/Node@2x.png</file>
         <file>icons/type/Notation.png</file>
         <file>icons/type/Notation@2x.png</file>
         <file>icons/type/Object.png</file>
@@ -161,6 +168,8 @@
         <file>icons/type/Provisioner@2x.png</file>
         <file>icons/type/Query.png</file>
         <file>icons/type/Query@2x.png</file>
+        <file>icons/type/Reference.png</file>
+        <file>icons/type/Reference@2x.png</file>
         <file>icons/type/Record.png</file>
         <file>icons/type/Record@2x.png</file>
         <file>icons/type/Relationship.png</file>
@@ -179,6 +188,8 @@
         <file>icons/type/Script@2x.png</file>
         <file>icons/type/Section.png</file>
         <file>icons/type/Section@2x.png</file>
+        <file>icons/type/Sender.png</file>
+        <file>icons/type/Sender@2x.png</file>
         <file>icons/type/Service.png</file>
         <file>icons/type/Service@2x.png</file>
         <file>icons/type/Setting.png</file>
@@ -187,8 +198,6 @@
         <file>icons/type/Shortcut@2x.png</file>
         <file>icons/type/Signature.png</file>
         <file>icons/type/Signature@2x.png</file>
-        <file>icons/type/Snippet.png</file>
-        <file>icons/type/Snippet@2x.png</file>
         <file>icons/type/Special Form.png</file>
         <file>icons/type/Special Form@2x.png</file>
         <file>icons/type/Statement.png</file>
@@ -227,8 +236,6 @@
         <file>icons/type/Variant@2x.png</file>
         <file>icons/type/View.png</file>
         <file>icons/type/View@2x.png</file>
-        <file>icons/type/Web.png</file>
-        <file>icons/type/Web@2x.png</file>
         <file>icons/type/Word.png</file>
         <file>icons/type/Word@2x.png</file>
         <file>icons/logo/64x64.png</file>

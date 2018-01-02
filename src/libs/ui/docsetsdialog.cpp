@@ -28,6 +28,7 @@
 #include "progressitemdelegate.h"
 
 #include <core/application.h>
+#include <core/filemanager.h>
 #include <core/settings.h>
 #include <registry/docset.h>
 #include <registry/docsetregistry.h>
@@ -36,15 +37,15 @@
 
 #include <QClipboard>
 #include <QDir>
-#include <QFutureWatcher>
 #include <QInputDialog>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QMessageBox>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QMessageBox>
+#include <QStandardPaths>
 #include <QTemporaryFile>
 #include <QUrl>
-
-#include <QtConcurrent/QtConcurrent>
 
 using namespace Zeal;
 using namespace Zeal::WidgetUi;
@@ -151,14 +152,14 @@ DocsetsDialog::DocsetsDialog(Core::Application *app, QWidget *parent) :
     connect(ui->downloadDocsetsButton, &QPushButton::clicked,
             this, &DocsetsDialog::downloadSelectedDocsets);
 
-    connect(m_docsetRegistry, &DocsetRegistry::docsetRemoved, this, [this](const QString name) {
+    connect(m_docsetRegistry, &DocsetRegistry::docsetUnloaded, this, [this](const QString name) {
         QListWidgetItem *item = findDocsetListItem(name);
         if (!item)
             return;
 
         item->setHidden(false);
     });
-    connect(m_docsetRegistry, &DocsetRegistry::docsetAdded, this, [this](const QString name) {
+    connect(m_docsetRegistry, &DocsetRegistry::docsetLoaded, this, [this](const QString name) {
         QListWidgetItem *item = findDocsetListItem(name);
         if (!item)
             return;
@@ -188,7 +189,7 @@ DocsetsDialog::~DocsetsDialog()
 
 void DocsetsDialog::reject()
 {
-    if (m_replies.isEmpty() && m_tmpFiles.isEmpty() && m_docsetsBeingDeleted.isEmpty()) {
+    if (m_replies.isEmpty() && m_tmpFiles.isEmpty()) {
         QDialog::reject();
         return;
     }
@@ -406,20 +407,33 @@ void DocsetsDialog::downloadCompleted()
         }
 
         m_userFeeds[metadata.name()] = metadata;
-        QNetworkReply *reply = download(metadata.url());
-        reply->setProperty(DocsetNameProperty, metadata.name());
-        reply->setProperty(DownloadTypeProperty, DownloadDocset);
+        Registry::Docset *docset = m_docsetRegistry->docset(metadata.name());
+        if (docset == nullptr) {
+            // Fetch docset only on first feed download,
+            // since further downloads are only update checks
+            QNetworkReply *reply = download(metadata.url());
+            reply->setProperty(DocsetNameProperty, metadata.name());
+            reply->setProperty(DownloadTypeProperty, DownloadDocset);
+        } else {
+            // Check for feed update
+            if (metadata.latestVersion() != docset->version()
+                    || metadata.revision() > docset->revision()) {
+                docset->hasUpdate = true;
+                ui->updateAllDocsetsButton->setEnabled(true);
+                ui->installedDocsetList->reset();
+            }
+        }
 
         break;
     }
 
     case DownloadDocset: {
         const QString docsetName = reply->property(DocsetNameProperty).toString();
+        const QString docsetDirectoryName = docsetName + QLatin1String(".docset");
 
-        // TODO: Implement an explicit and verbose docset update logic
-        const QDir dir(m_application->settings()->docsetPath);
-        if (dir.exists(docsetName + QLatin1String(".docset")))
+        if (QDir(m_application->settings()->docsetPath).exists(docsetDirectoryName)) {
             removeDocset(docsetName);
+        }
 
         QTemporaryFile *tmpFile = m_tmpFiles[docsetName];
         if (!tmpFile) {
@@ -439,7 +453,7 @@ void DocsetsDialog::downloadCompleted()
         }
 
         m_application->extract(tmpFile->fileName(), m_application->settings()->docsetPath,
-                               docsetName + QLatin1String(".docset"));
+                               docsetDirectoryName);
         break;
     }
     }
@@ -505,7 +519,7 @@ void DocsetsDialog::extractionCompleted(const QString &filePath)
               : m_userFeeds[docsetName];
     metadata.save(docsetPath, metadata.latestVersion());
 
-    m_docsetRegistry->addDocset(docsetPath);
+    m_docsetRegistry->loadDocset(docsetPath);
 
     QListWidgetItem *listItem = findDocsetListItem(docsetName);
     if (listItem) {
@@ -541,6 +555,8 @@ void DocsetsDialog::extractionProgress(const QString &filePath, qint64 extracted
 
 void DocsetsDialog::loadDocsetList()
 {
+    loadUserFeedList();
+
     const QFileInfo fi(cacheLocation(DocsetListCacheFileName));
     if (!fi.exists() || fi.lastModified().msecsTo(QDateTime::currentDateTime()) > CacheTimeout) {
         downloadDocsetList();
@@ -627,6 +643,16 @@ void DocsetsDialog::cancelDownloads()
     resetProgress();
 }
 
+void DocsetsDialog::loadUserFeedList()
+{
+    for (Registry::Docset *docset : m_docsetRegistry->docsets()) {
+        if (!docset->feedUrl().isEmpty()) {
+            QNetworkReply *reply = download(QUrl(docset->feedUrl()));
+            reply->setProperty(DownloadTypeProperty, DownloadDashFeed);
+        }
+    }
+}
+
 void DocsetsDialog::downloadDocsetList()
 {
     ui->availableDocsetList->clear();
@@ -671,11 +697,19 @@ void DocsetsDialog::downloadDashDocset(const QModelIndex &index)
 {
     const QString name = index.data(Registry::ItemDataRole::DocsetNameRole).toString();
 
-    if (!m_availableDocsets.contains(name))
+    if (!m_availableDocsets.contains(name) && !m_userFeeds.contains(name))
         return;
 
-    const QString urlString = RedirectServerUrl + QStringLiteral("/d/com.kapeli/%1/latest");
-    QNetworkReply *reply = download(QUrl(urlString.arg(name)));
+    QUrl url;
+    if (!m_userFeeds.contains(name)) {
+        // No feed present means that this is a Kapeli docset
+        QString urlString = RedirectServerUrl + QString("/d/com.kapeli/%1/latest");
+        url = QUrl(urlString.arg(name));
+    } else {
+        url = m_userFeeds[name].url();
+    }
+
+    QNetworkReply *reply = download(url);
     reply->setProperty(DocsetNameProperty, name);
     reply->setProperty(DownloadTypeProperty, DownloadDocset);
     reply->setProperty(ListItemIndexProperty,
@@ -684,50 +718,23 @@ void DocsetsDialog::downloadDashDocset(const QModelIndex &index)
 
 void DocsetsDialog::removeDocset(const QString &name)
 {
-    if (m_docsetsBeingDeleted.contains(name))
-        return;
+    if (m_docsetRegistry->contains(name)) {
+        m_docsetRegistry->unloadDocset(name);
+    }
 
-    m_docsetsBeingDeleted.append(name);
-
-    Registry::Docset *docset = m_docsetRegistry->docset(name);
-    const QString title = docset->title();
-    const QString docsetPath = docset->path();
-    const QString tmpPath = docsetPath + QLatin1String(".deleteme.")
-            + QString::number(QDateTime::currentMSecsSinceEpoch());
-
-    // Remove from registry first to avoid renaming files in use on Windows.
-    m_docsetRegistry->remove(name);
-
-    // Rename first to allow simultaneous installation.
-    if (!QDir().rename(docsetPath, tmpPath)) {
-        const QString error = tr("Cannot delete docset <b>%1</b>! Please try closing other "
-                                 "applications first, as they may be accessing the docset "
-                                 "files.").arg(title);
+    const QString docsetPath
+            = QDir(m_application->settings()->docsetPath).filePath(name + QLatin1String(".docset"));
+    if (!m_application->fileManager()->removeRecursively(docsetPath)) {
+        const QString error = tr("Cannot remove directory <b>%1</b>! It might be in use"
+                                 " by another process.").arg(docsetPath);
         QMessageBox::warning(this, QStringLiteral("Zeal"), error);
-        m_docsetsBeingDeleted.removeOne(name);
-        m_docsetRegistry->addDocset(docsetPath);
         return;
     }
 
-    QFutureWatcher<bool> *watcher = new QFutureWatcher<bool>();
-    connect(watcher, &QFutureWatcher<void>::finished, [=] {
-        if (!watcher->result()) {
-            QMessageBox::warning(this, QStringLiteral("Zeal"),
-                                 tr("Cannot delete docset <b>%1</b>!").arg(title));
-        }
-
-        QListWidgetItem *listItem = findDocsetListItem(name);
-        if (listItem)
-            listItem->setHidden(false);
-
-        watcher->deleteLater();
-
-        m_docsetsBeingDeleted.removeOne(name);
-    });
-
-    watcher->setFuture(QtConcurrent::run([tmpPath] {
-        return QDir(tmpPath).removeRecursively();
-    }));
+    QListWidgetItem *listItem = findDocsetListItem(name);
+    if (listItem) {
+        listItem->setHidden(false);
+    }
 }
 
 void DocsetsDialog::updateCombinedProgress()

@@ -211,6 +211,11 @@ QString Docset::revision() const
     return m_revision;
 }
 
+QString Docset::feedUrl() const
+{
+    return m_feedUrl;
+}
+
 QString Docset::path() const
 {
     return m_path;
@@ -265,7 +270,7 @@ QList<SearchResult> Docset::search(const QString &query, const CancellationToken
                                  "  FROM searchIndex"
                                  "  WHERE score > 0");
         } else {
-            sql = QStringLiteral("SELECT name, type, path, ''"
+            sql = QStringLiteral("SELECT name, type, path, '', -length(name) as score"
                                  "  FROM searchIndex"
                                  "  WHERE (name LIKE '%%1%' ESCAPE '\\')");
         }
@@ -275,7 +280,7 @@ QList<SearchResult> Docset::search(const QString &query, const CancellationToken
                                  "  FROM searchIndex"
                                  "  WHERE score > 0");
         } else {
-            sql = QStringLiteral("SELECT name, type, path, fragment"
+            sql = QStringLiteral("SELECT name, type, path, fragment, -length(name) as score"
                                  "  FROM searchIndex"
                                  "  WHERE (name LIKE '%%1%' ESCAPE '\\')");
         }
@@ -370,6 +375,10 @@ void Docset::loadMetadata()
     m_title = jsonObject[QStringLiteral("title")].toString();
     m_version = jsonObject[QStringLiteral("version")].toString();
     m_revision = jsonObject[QStringLiteral("revision")].toString();
+
+    if (jsonObject.contains(QStringLiteral("feed_url"))) {
+        m_feedUrl = jsonObject[QStringLiteral("feed_url")].toString();
+    }
 
     if (jsonObject.contains(QStringLiteral("extra"))) {
         const QJsonObject extra = jsonObject[QStringLiteral("extra")].toObject();
@@ -509,7 +518,8 @@ QUrl Docset::createPageUrl(const QString &path, const QString &fragment) const
     realPath.remove(dashEntryRegExp);
     realFragment.remove(dashEntryRegExp);
 
-    QUrl url = QUrl::fromLocalFile(QDir(documentPath()).filePath(realPath));
+    // Absolute file path is required here to handle relative path to the docset storage (see #806).
+    QUrl url = QUrl::fromLocalFile(QDir(documentPath()).absoluteFilePath(realPath));
     if (!realFragment.isEmpty()) {
         if (realFragment.startsWith(QLatin1String("//apple_ref"))
                 || realFragment.startsWith(QLatin1String("//dash_ref"))) {

@@ -21,7 +21,7 @@
 **
 ****************************************************************************/
 
-#include "searchablewebview.h"
+#include "webviewtab.h"
 
 #include "webview.h"
 
@@ -32,54 +32,59 @@
 #include <QWebFrame>
 #include <QWebHistory>
 #include <QWebPage>
+#include <QVBoxLayout>
 
 using namespace Zeal::WidgetUi;
 
-SearchableWebView::SearchableWebView(QWidget *parent) :
+WebViewTab::WebViewTab(QWidget *parent) :
     QWidget(parent),
-    m_searchLineEdit(new QLineEdit(this)),
-    m_webView(new WebView(this))
+    m_searchLineEdit(new QLineEdit(this))
 {
-    m_webView->setAttribute(Qt::WA_AcceptTouchEvents, false);
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
     m_searchLineEdit->hide();
     m_searchLineEdit->installEventFilter(this);
-    connect(m_searchLineEdit, &QLineEdit::textChanged, this, &SearchableWebView::find);
+    connect(m_searchLineEdit, &QLineEdit::textChanged, this, &WebViewTab::find);
 
-    connect(m_webView, &QWebView::loadFinished, [&](bool ok) {
+    m_webView = new WebView();
+    connect(m_webView, &QWebView::loadFinished, this, [this](bool ok) {
         Q_UNUSED(ok)
         moveLineEdit();
     });
 
-    connect(m_webView, &QWebView::urlChanged, this, &SearchableWebView::urlChanged);
-    connect(m_webView, &QWebView::titleChanged, this, &SearchableWebView::titleChanged);
-    connect(m_webView, &QWebView::linkClicked, this, &SearchableWebView::linkClicked);
-}
+    connect(m_webView->page(), &QWebPage::linkHovered, [this](const QString &link) {
+        if (link.startsWith(QLatin1String("file:")) || link.startsWith(QLatin1String("qrc:")))
+            return;
 
-void SearchableWebView::setPage(QWebPage *page)
-{
-    m_webView->setPage(page);
-
-    connect(page, &QWebPage::linkHovered, [&](const QString &link) {
-        if (!link.startsWith(QLatin1String("file:")))
-            setToolTip(link);
+        setToolTip(link);
     });
+
+    connect(m_webView, &QWebView::linkClicked, this, &WebViewTab::linkClicked);
+    connect(m_webView, &QWebView::titleChanged, this, &WebViewTab::titleChanged);
+    connect(m_webView, &QWebView::urlChanged, this, &WebViewTab::urlChanged);
+
+    layout->addWidget(m_webView);
+
+    setLayout(layout);
+
 }
 
-int SearchableWebView::zoomFactor() const
+int WebViewTab::zoomLevel() const
 {
-    return m_webView->zealZoomFactor();
+    return m_webView->zoomLevel();
 }
 
-void SearchableWebView::setZoomFactor(int value)
+void WebViewTab::setZoomLevel(int level)
 {
-    m_webView->setZealZoomFactor(value);
+    m_webView->setZoomLevel(level);
 }
 
-bool SearchableWebView::eventFilter(QObject *object, QEvent *event)
+bool WebViewTab::eventFilter(QObject *object, QEvent *event)
 {
     if (object == m_searchLineEdit && event->type() == QEvent::KeyPress) {
-        QKeyEvent *keyEvent = reinterpret_cast<QKeyEvent *>(event);
+        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
         switch (keyEvent->key()) {
         case Qt::Key_Escape:
             hideSearchBar();
@@ -102,37 +107,32 @@ bool SearchableWebView::eventFilter(QObject *object, QEvent *event)
     return QWidget::eventFilter(object, event);
 }
 
-void SearchableWebView::load(const QUrl &url)
+void WebViewTab::load(const QUrl &url)
 {
     m_webView->load(url);
 }
 
-void SearchableWebView::focus()
+void WebViewTab::focus()
 {
     m_webView->setFocus();
 }
 
-QWebPage *SearchableWebView::page() const
-{
-    return m_webView->page();
-}
-
-QSize SearchableWebView::sizeHint() const
+QSize WebViewTab::sizeHint() const
 {
     return m_webView->sizeHint();
 }
 
-void SearchableWebView::back()
+void WebViewTab::back()
 {
     m_webView->back();
 }
 
-void SearchableWebView::forward()
+void WebViewTab::forward()
 {
     m_webView->forward();
 }
 
-void SearchableWebView::showSearchBar()
+void WebViewTab::showSearchBar()
 {
     m_searchLineEdit->show();
     m_searchLineEdit->setFocus();
@@ -142,23 +142,38 @@ void SearchableWebView::showSearchBar()
     }
 }
 
-void SearchableWebView::hideSearchBar()
+void WebViewTab::hideSearchBar()
 {
     m_searchLineEdit->hide();
     m_webView->findText(QString(), QWebPage::HighlightAllOccurrences);
 }
 
-bool SearchableWebView::canGoBack() const
+bool WebViewTab::canGoBack() const
 {
     return m_webView->history()->canGoBack();
 }
 
-bool SearchableWebView::canGoForward() const
+bool WebViewTab::canGoForward() const
 {
     return m_webView->history()->canGoForward();
 }
 
-void SearchableWebView::keyPressEvent(QKeyEvent *event)
+QString WebViewTab::title() const
+{
+    return m_webView->title();
+}
+
+QUrl WebViewTab::url() const
+{
+    return m_webView->url();
+}
+
+QWebHistory *WebViewTab::history() const
+{
+    return m_webView->history();
+}
+
+void WebViewTab::keyPressEvent(QKeyEvent *event)
 {
     switch (event->key()) {
     case Qt::Key_Slash:
@@ -171,14 +186,14 @@ void SearchableWebView::keyPressEvent(QKeyEvent *event)
     }
 }
 
-void SearchableWebView::resizeEvent(QResizeEvent *event)
+void WebViewTab::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     m_webView->resize(event->size().width(), event->size().height());
     moveLineEdit();
 }
 
-void SearchableWebView::find(const QString &text)
+void WebViewTab::find(const QString &text)
 {
     if (m_webView->selectedText() != text) {
         m_webView->findText(QString(), QWebPage::HighlightAllOccurrences);
@@ -192,7 +207,7 @@ void SearchableWebView::find(const QString &text)
     m_webView->findText(text, QWebPage::HighlightAllOccurrences);
 }
 
-void SearchableWebView::findNext(const QString &text, bool backward)
+void WebViewTab::findNext(const QString &text, bool backward)
 {
     QWebPage::FindFlags flags = QWebPage::FindWrapsAroundDocument;
     if (backward)
@@ -201,7 +216,7 @@ void SearchableWebView::findNext(const QString &text, bool backward)
     m_webView->findText(text, flags);
 }
 
-void SearchableWebView::moveLineEdit()
+void WebViewTab::moveLineEdit()
 {
     int frameWidth = style()->pixelMetric(QStyle::PM_DefaultFrameWidth);
     frameWidth += m_webView->page()->currentFrame()->scrollBarGeometry(Qt::Vertical).width();

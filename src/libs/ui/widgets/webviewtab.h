@@ -21,42 +21,45 @@
 **
 ****************************************************************************/
 
-#ifndef ZEAL_WIDGETUI_SEARCHABLEWEBVIEW_H
-#define ZEAL_WIDGETUI_SEARCHABLEWEBVIEW_H
+#ifndef ZEAL_WIDGETUI_WEBVIEWTAB_H
+#define ZEAL_WIDGETUI_WEBVIEWTAB_H
 
 #include <QWidget>
 
 class QLineEdit;
-class QWebPage;
+class QWebHistory;
 
 namespace Zeal {
 namespace WidgetUi {
 
 class WebView;
 
-class SearchableWebView : public QWidget
+class WebViewTab : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SearchableWebView(QWidget *parent = nullptr);
+    explicit WebViewTab(QWidget *parent = nullptr);
 
     void load(const QUrl &url);
     void focus();
     QSize sizeHint() const override;
-    QWebPage *page() const;
     bool canGoBack() const;
     bool canGoForward() const;
-    void setPage(QWebPage *page);
 
-    int zoomFactor() const;
-    void setZoomFactor(int value);
+    QString title() const;
+    QUrl url() const;
+
+    QWebHistory *history() const;
+
+    int zoomLevel() const;
+    void setZoomLevel(int level);
 
     bool eventFilter(QObject *object, QEvent *event) override;
 
 signals:
-    void urlChanged(const QUrl &url);
-    void titleChanged(const QString &title);
     void linkClicked(const QUrl &url);
+    void titleChanged(const QString &title);
+    void urlChanged(const QUrl &url);
 
 public slots:
     void back();
@@ -80,4 +83,4 @@ private:
 } // namespace WidgetUi
 } // namespace Zeal
 
-#endif // ZEAL_WIDGETUI_SEARCHABLEWEBVIEW_H
+#endif // ZEAL_WIDGETUI_WEBVIEWTAB_H
